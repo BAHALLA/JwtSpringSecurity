@@ -23,28 +23,41 @@ public class JWTAuthorizationFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
-        String tokenJwt = request.getHeader(SecurityConstants.HEADER_STRING);
-        if(tokenJwt == null || !tokenJwt.startsWith(SecurityConstants.TOKEN_PREFIX)){
-            filterChain.doFilter(request, response);
-            return;
+        response.addHeader("Access-Control-Allow-Origin", "*");
+        response.addHeader("Access-Control-Allow-Headers", "Origin, Accept, " +
+                "X-Requested-With, Content-Type, Access-Control-Allow-Headers," +
+                "Access-Control-Allow-Method, Authorization");
+        response.addHeader("Access-Control-Expose-Headers","Access-Control-Allow-Origin, " +
+                "Access-Control-Allow-Credentials, Authorization");
+
+        if(request.getMethod().equals("OPTIONS")) {
+            response.setStatus(HttpServletResponse.SC_OK);
         }
-        Claims claims = Jwts.parser()
-                .setSigningKey(SecurityConstants.SECRET)
-                .parseClaimsJws(tokenJwt.replace(SecurityConstants.TOKEN_PREFIX,""))
-                .getBody();
+        else {
+            String tokenJwt = request.getHeader(SecurityConstants.HEADER_STRING);
+            if(tokenJwt == null || !tokenJwt.startsWith(SecurityConstants.TOKEN_PREFIX)){
+                filterChain.doFilter(request, response);
+                return;
+            }
+            Claims claims = Jwts.parser()
+                    .setSigningKey(SecurityConstants.SECRET)
+                    .parseClaimsJws(tokenJwt.replace(SecurityConstants.TOKEN_PREFIX,""))
+                    .getBody();
 
 
-        String username = claims.getSubject();
-        System.out.println(username);
-        ArrayList<Map<String, String>> roles = (ArrayList<Map<String, String>>) claims.get("roles");
-        Collection<GrantedAuthority> authorities = new ArrayList<>();
-        roles.forEach(r -> {
-            authorities.add(new SimpleGrantedAuthority(r.get("authority")));
-        });
+            String username = claims.getSubject();
+            System.out.println(username);
+            ArrayList<Map<String, String>> roles = (ArrayList<Map<String, String>>) claims.get("roles");
+            Collection<GrantedAuthority> authorities = new ArrayList<>();
+            roles.forEach(r -> {
+                authorities.add(new SimpleGrantedAuthority(r.get("authority")));
+            });
 
-        UsernamePasswordAuthenticationToken authenticationUser =
-                new UsernamePasswordAuthenticationToken(username,null, authorities);
-        SecurityContextHolder.getContext().setAuthentication(authenticationUser);
-        filterChain.doFilter(request,response);
+            UsernamePasswordAuthenticationToken authenticationUser =
+                    new UsernamePasswordAuthenticationToken(username,null, authorities);
+            SecurityContextHolder.getContext().setAuthentication(authenticationUser);
+            filterChain.doFilter(request,response);
+        }
+
     }
 }
